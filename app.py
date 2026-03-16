@@ -34,7 +34,7 @@ elif view == "Barista":
     if not pending_orders:
         st.info("No pending orders right now.")
     else:
-        st.dataframe(pending_orders, use_container_width=True, hide_index=True)
+        st.dataframe(pending_orders, width=True, hide_index=True)
         st.write(f"Total pending: {len(pending_orders)}")
 
 else:
