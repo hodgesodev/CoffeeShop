@@ -219,3 +219,7 @@ __marimo__/
 .idea
 .vs
 .vscode
+
+# We do not need to ship the pregenerated db when we update the code, generating the db at runtime will let
+#   us debug easier. We can remove this once we cement the db schema
+*.db
