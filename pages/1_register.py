@@ -1,23 +1,12 @@
 import streamlit as st
 from drink import Drink
 from order import Order
+from db import create_order, get_items
 
 st.set_page_config(page_title="Register", page_icon=":coffee:", layout="wide")
 
-drinks = [
-    {
-        "name": "Coffee",
-        "price": 2.50,
-    },
-    {
-        "name": "Tea",
-        "price": 1.50,
-    },
-    {
-        "name": "Hot Chocolate",
-        "price": 2.25,
-    },
-]
+drinks = get_items()
+
 
 pane_height = 600
 
@@ -50,12 +39,15 @@ submit_container = st.container(
 if submit_container.button(label="Clear Order"):
     init_order()
 
-customer_name = submit_container.text_input("Customer name")
+customer_name = submit_container.text_input("Customer name").strip()
 
 submit_container.text("Price:")
 submit_container.text(f"${st.session_state.order.get_price(): .2f}")
 
-submit_container.button(label="Submit")
+if submit_container.button(label="Submit") and len(customer_name) > 0 :
+    create_order(customer_name, st.session_state.order)
+    init_order()
+    st.rerun()
 
 with menu: ## This pane should hold all the available drinks that can be added to the order
     for item in drinks:
