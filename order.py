@@ -1,5 +1,4 @@
 from drink import Drink
-from enum import Enum
 
 class Order:
     def __init__(self):
@@ -14,7 +13,7 @@ class Order:
         self._price = price
 
     def add_drink(self, drink: Drink):
-        if drink not in self._drinks:
+        if drink not in self._drinks.keys():
             self._drinks[drink] = 1
         else:
             self._drinks[drink] += 1
@@ -22,7 +21,7 @@ class Order:
         self.update_price()
 
     def remove_drink(self, drink: Drink):
-        if drink in self._drinks:
+        if drink in self._drinks.keys():
             self._drinks[drink] -= 1
 
             if self._drinks[drink] == 0:
