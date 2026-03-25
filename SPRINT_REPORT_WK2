@@ -1,0 +1,18 @@
+# Sprint 2 Report
+
+## Goal
+MVP refactoring 
+
+- Barista can see pending orders and mark orders as completed
+- Customer can see queue position
+
+## What was delivered
+- SQLite database bug fixes
+
+## Not included by design
+
+- Split payments
+- Inventory system
+- Complex architecture
+- Fancy UI polish
+- Expanded user stories
