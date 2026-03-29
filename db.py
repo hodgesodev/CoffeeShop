@@ -206,7 +206,7 @@ def create_order(
         )
         order_id = cursor.lastrowid
 
-        for item, (quantity, size_name) in order.get_drinks().items():
+        for (item, size_name), quantity in order.get_drinks().items():
             drink_row = cursor.execute(
                 """
                 SELECT items.item_id, items.price, sizes.size_id, sizes.multiplier
