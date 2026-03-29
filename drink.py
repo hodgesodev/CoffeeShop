@@ -21,3 +21,6 @@ class Drink:
 
     def __hash__(self):
         return hash((self._name, self._price))
+
+    def __repr__(self):
+        return f"Drink(name={self._name!r}, price={self._price})"
