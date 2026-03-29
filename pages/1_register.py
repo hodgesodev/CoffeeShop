@@ -1,109 +1,108 @@
 import streamlit as st
 from drink import Drink
 from order import Order
-from db import create_order, get_items
+from db import create_order, get_items, get_sizes_for_item
 
 st.set_page_config(page_title="Register", page_icon=":coffee:", layout="wide")
 
+TITLE_HEIGHT       = 70   # st.title
+SUBHEADER_HEIGHT   = 50   # st.subheader
+DETAIL_PANE_HEIGHT = 280  # detail section when a drink is selected
+SUBMIT_BAR_HEIGHT  = 100  # divider + submit row
+PADDING            = 40
+
+SCROLL_HEIGHT = 768 - TITLE_HEIGHT - SUBHEADER_HEIGHT - DETAIL_PANE_HEIGHT - SUBMIT_BAR_HEIGHT - PADDING
+
 drinks = get_items()
-
-
-pane_height = 600
 
 def init_order():
     st.session_state.order = Order()
 
-if "order" not in st.session_state: ## doing this here is fine, it can happen later, but must be before use
+if "order" not in st.session_state:
     init_order()
 
-item_pane, order_pane = st.columns(
-    spec=2,
-    width="stretch",
-    gap="large",
-)
-item_pane.header("Drinks")
-order_pane.header("Order")
-menu = item_pane.container(height=pane_height, width="stretch")
-order_contents = order_pane.container(width="stretch", height=pane_height)
+if "selected_drink" not in st.session_state:
+    st.session_state.selected_drink = None
 
-## We initialize and use this container in between initialization and use of the panes in order to force proper
-## function call order
-submit_container = st.container(
-    width="stretch",
-    height="stretch",
-    horizontal=True,
-    horizontal_alignment="center",
-    vertical_alignment="bottom",
-)
+# Header
+st.title("Register")
 
-if submit_container.button(label="Clear Order"):
-    init_order()
+# Main columns
+item_pane, order_pane = st.columns(2, gap="large")
 
-customer_name = submit_container.text_input("Customer name").strip()
+with item_pane:
+    st.subheader("Drinks")
+    with st.container(height=SCROLL_HEIGHT + DETAIL_PANE_HEIGHT, border=False):
+        for item in drinks:
+            c = st.container(border=True)
+            name_col, price_col, button_col = c.columns([3, 2, 2])
+            is_selected = (
+                st.session_state.selected_drink is not None
+                and st.session_state.selected_drink["name"] == item["name"]
+            )
+            name_col.text(item["name"])
+            price_col.text(f"${item['price']:.2f}")
+            label = "Selected" if is_selected else "Select"
+            if button_col.button(label=label, key=f"select_{item['name']}"):
+                st.session_state.selected_drink = item
+                st.rerun()
 
-submit_container.text("Price:")
-submit_container.text(f"${st.session_state.order.get_price(): .2f}")
+with order_pane:
+    st.subheader("Order")
 
-if submit_container.button(label="Submit") and len(customer_name) > 0 :
-    create_order(customer_name, st.session_state.order)
-    init_order()
-    st.rerun()
+    # Detail pane
+    with st.container(height=DETAIL_PANE_HEIGHT, border=True):
+        selected = st.session_state.selected_drink
+        if selected is None:
+            st.markdown("*Select a drink to see details*")
+        else:
+            sizes = get_sizes_for_item(selected["name"])
+            st.markdown(f"**{selected["name"]}**")
+            st.caption(f"Base price: ${selected["price"]:.2f}")
+            if not sizes:
+                st.warning("No sizes available for this item.")
+            else:
+                size_labels = {s["name"].capitalize(): s for s in sizes}
+                chosen_label = st.radio(
+                    "Size", options=list(size_labels.keys()),
+                    horizontal=True,
+                    index=1 if len(size_labels) > 1 else 0,
+                    key="size_radio",
+                )
+                chosen_size = size_labels[chosen_label]
+                st.markdown(f"**Price: ${chosen_size['computed_price']:.2f}**")
+                if st.button("Add to order", key="detail_add"):
+                    drink = Drink(selected["name"], selected["price"])
+                    st.session_state.order.add_drink(drink, chosen_size["name"], chosen_size["computed_price"])
+                    st.rerun()
 
-with menu: ## This pane should hold all the available drinks that can be added to the order
-    for item in drinks:
-        c = st.container(
-            width="stretch",
-            horizontal=True,
-            horizontal_alignment="left",
-            vertical_alignment="center",
-            border=True,
-        )
-        name_col = c.container(
-            vertical_alignment="center",
-            horizontal_alignment="left",
-        )
-        price_col = c.container(
-            vertical_alignment="center",
-            horizontal_alignment="center",
-        )
-        button_col = c.container(
-            vertical_alignment="center",
-            horizontal_alignment="right",
-        )
+    # Order contents
+    with st.container(height=SCROLL_HEIGHT, border=False):
+        ordered_drinks = st.session_state.order.get_drinks()
+        if not ordered_drinks:
+            st.caption("No drinks added yet.")
+        else:
+            for (drink, size_name), quantity in ordered_drinks.items():
+                unit_price = st.session_state.order.get_unit_price(drink, size_name)
+                c = st.container(border=True)
+                name_col, size_col, qty_col = c.columns([3, 2, 2])
+                name_col.text(drink.get_name())
+                size_col.text(size_name.capitalize())
+                qty_col.text(f"x{quantity}  ${unit_price:.2f} ea")
 
-        name_col.text(item['name'])
-        price_col.text(f"${item['price']: .2f}")
-        if button_col.button(label="Add to order", key=f"add_{item['name']}", width="stretch"):
-            st.session_state.order.add_drink(Drink(item['name'], item['price']))
-            st.rerun()
-
-with (order_contents): ## This pane holds all drinks in the order
-    ordered_drinks = st.session_state.order.get_drinks()
-
-    for (drink) in ordered_drinks:
-        c = st.container(
-            width="stretch",
-            horizontal=True,
-            horizontal_alignment="left",
-            vertical_alignment="bottom",
-            border=True,
-        )
-        name_col = c.container(
-            vertical_alignment="center",
-            horizontal_alignment="left",
-        )
-        price_col = c.container(
-            vertical_alignment="center",
-            horizontal_alignment="center",
-        )
-        qty_col = c.container(
-            vertical_alignment="center",
-            horizontal_alignment="right",
-        )
-
-        name_col.text(drink.get_name())
-        price_col.text(f"${drink.get_price(): .2f}")
-        qty_col.text(f"x{ordered_drinks.get(drink)}")
-
-
-
+# Submit bar
+st.divider()
+col1, col2, col3 = st.columns([1, 2, 1])
+with col1:
+    if st.button("Clear Order"):
+        init_order()
+        st.rerun()
+with col2:
+    customer_name = st.text_input("Customer name").strip()
+with col3:
+    st.markdown(f"**Total: ${st.session_state.order.get_price():.2f}**")
+    if st.button("Submit") and customer_name:
+        create_order(customer_name, st.session_state.order)
+        init_order()
+        st.session_state.selected_drink = None
+        st.rerun()
