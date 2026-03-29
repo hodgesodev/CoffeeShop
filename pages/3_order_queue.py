@@ -8,7 +8,7 @@ pending_container = st.container(height=pane_height, width="content", border=Fal
 pending_container.subheader("Pending Orders")
 pending_orders = get_pending_orders()
 if not pending_orders:
-    pending_container.info("No pending orders right now.")
+    pending_container.info("No orders in the system right now.")
 else:
     pending_container.write(f"Total pending: {len(pending_orders)}")
 
