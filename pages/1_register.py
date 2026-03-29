@@ -75,6 +75,7 @@ with menu: ## This pane should hold all the available drinks that can be added t
         price_col.text(f"${item['price']: .2f}")
         if button_col.button(label="Add to order", key=f"add_{item['name']}", width="stretch"):
             st.session_state.order.add_drink(Drink(item['name'], item['price']))
+            st.rerun()
 
 with (order_contents): ## This pane holds all drinks in the order
     ordered_drinks = st.session_state.order.get_drinks()
