@@ -112,13 +112,9 @@ def _migrate_v2(conn: sqlite3.Connection) -> None:
             FOREIGN KEY (size_id) REFERENCES sizes(size_id)  ON DELETE CASCADE
         );
 
-        -- Rebuild order_details to include size_id and update the unique constraint
         ALTER TABLE order_details ADD COLUMN size_id INTEGER REFERENCES sizes(size_id) ON DELETE RESTRICT;
         """
     )
-    # SQLite doesn't support adding a constraint via ALTER TABLE, so we check
-    # size_id presence in create_order at the application level instead.
-    # A full constraint rebuild would require recreating the table.
 
 
 def add_drink_to_db(name: str, price: float, db_path: str | Path = DEFAULT_DB_PATH) -> None:
@@ -150,7 +146,6 @@ def add_size_to_db(name: str, multiplier: float, db_path: str | Path = DEFAULT_D
 
 
 def _seed_item_sizes(db_path: str | Path = DEFAULT_DB_PATH) -> None:
-    """Associate all existing items with all sizes, if not already linked."""
     with _connect(db_path) as conn:
         conn.execute(
             """
@@ -175,7 +170,6 @@ def get_sizes(db_path: str | Path = DEFAULT_DB_PATH) -> list[dict[str, Any]]:
 
 
 def get_sizes_for_item(item_name: str, db_path: str | Path = DEFAULT_DB_PATH) -> list[dict[str, Any]]:
-    """Returns valid sizes and computed prices for a given item."""
     with _connect(db_path) as conn:
         rows = conn.execute(
             """
