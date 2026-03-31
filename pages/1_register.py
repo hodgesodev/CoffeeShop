@@ -21,7 +21,7 @@ item_pane, order_pane = st.columns(
     width="stretch",
     gap="large",
 )
-item_pane.header("Drinks")
+item_pane.header("Menu")
 order_pane.header("Order")
 menu = item_pane.container(height=pane_height, width="stretch")
 order_contents = order_pane.container(width="stretch", height=pane_height)

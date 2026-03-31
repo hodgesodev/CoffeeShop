@@ -43,15 +43,22 @@ def init_db(db_path: str | Path = DEFAULT_DB_PATH) -> None:
     conn.commit()
     conn.close()
 
-    add_drink_to_db("Coffee", 2.25)
-    add_drink_to_db("Cafe au Lait", 3.25)
-    add_drink_to_db("Cold Brew", 2.55)
-    add_drink_to_db("Double Espresso", 2.45)
-    add_drink_to_db("Macchiato", 2.95)
-    add_drink_to_db("Mocha", 2.55)
-    add_drink_to_db("Chai Latte", 2.55)
+    add_product_to_db("Coffee", 2.25)
+    add_product_to_db("Cafe au Lait", 3.25)
+    add_product_to_db("Cold Brew", 2.55)
+    add_product_to_db("Double Espresso", 2.45)
+    add_product_to_db("Macchiato", 2.95)
+    add_product_to_db("Mocha", 2.55)
+    add_product_to_db("Chai Latte", 2.55)
+    add_product_to_db("Matcha Latte", 2.55)
+    add_product_to_db("Bacon, Egg & Cheese", 2.75)
+    add_product_to_db("Sausage, Egg & Cheese", 2.75)
+    add_product_to_db("Ham, Egg & Cheese", 2.75)
+    add_product_to_db("Spinach, Egg & Cheese", 2.75)
+    add_product_to_db("Bagel with Cream Cheese", 1.75)
 
-def add_drink_to_db(name: str, price: float, db_path: str | Path = DEFAULT_DB_PATH) -> None:
+
+def add_product_to_db(name: str, price: float, db_path: str | Path = DEFAULT_DB_PATH) -> None:
     with _connect(db_path) as conn:
         cursor = conn.cursor()
         cursor.execute(
