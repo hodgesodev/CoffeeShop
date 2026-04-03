@@ -38,16 +38,18 @@ submit_container = st.container(
 
 if submit_container.button(label="Clear Order"):
     init_order()
+    st.session_state.customer_name = ""
 
-customer_name = submit_container.text_input("Customer name").strip()
+customer_name = submit_container.text_input("Customer name", key="customer_name").strip()
 
 submit_container.text("Price:")
 submit_container.text(f"${st.session_state.order.get_price(): .2f}")
 
-if submit_container.button(label="Submit") and len(customer_name) > 0 :
+if submit_container.button(label="Submit") and len(customer_name) > 0:
     create_order(customer_name, st.session_state.order)
+    st.success("Order submitted successfully!")
     init_order()
-    st.rerun()
+    
 
 with menu: ## This pane should hold all the available drinks that can be added to the order
     for item in drinks:
