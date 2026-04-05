@@ -64,6 +64,10 @@ with menu: ## This pane should hold all the available drinks that can be added t
             vertical_alignment="center",
             horizontal_alignment="left",
         )
+        size_col = c.container(
+            vertical_alignment="center",
+            horizontal_alignment="center",
+        )
         price_col = c.container(
             vertical_alignment="center",
             horizontal_alignment="center",
@@ -74,9 +78,34 @@ with menu: ## This pane should hold all the available drinks that can be added t
         )
 
         name_col.text(item['name'])
-        price_col.text(f"${item['price']: .2f}")
+        
+        if item['sizes']:
+            # Drink with sizes
+            # Remove duplicates and sort by price
+            unique_sizes = {}
+            for size in item['sizes']:
+                unique_sizes[size['size_name']] = size
+            sorted_sizes = sorted(unique_sizes.values(), key=lambda s: s['price'])
+            size_options = [size['size_name'] for size in sorted_sizes]
+            selected_size_name = size_col.selectbox(
+                "Size", 
+                size_options, 
+                key=f"size_{item['name']}", 
+                label_visibility="collapsed"
+            )
+            selected_size = unique_sizes[selected_size_name]
+            display_price = selected_size['price']
+            drink_name = f"{item['name']} ({selected_size_name})"
+        else:
+            # Food item
+            size_col.text("")  # Empty for food
+            display_price = item['price']
+            drink_name = item['name']
+        
+        price_col.text(f"${display_price: .2f}")
+        
         if button_col.button(label="Add to order", key=f"add_{item['name']}", width="stretch"):
-            st.session_state.order.add_drink(Drink(item['name'], item['price']))
+            st.session_state.order.add_drink(Drink(drink_name, display_price))
 
 with (order_contents): ## This pane holds all drinks in the order
     ordered_drinks = st.session_state.order.get_drinks()

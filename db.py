@@ -28,48 +28,109 @@ def init_db(db_path: str | Path = DEFAULT_DB_PATH) -> None:
         CREATE TABLE IF NOT EXISTS items (
             item_id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT UNIQUE NOT NULL,
-            price DECIMAL NOT NULL
+            price DECIMAL NOT NULL,
+            is_food BOOLEAN NOT NULL DEFAULT 0
+        );
+        
+        CREATE TABLE IF NOT EXISTS item_sizes (
+            size_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            item_id INTEGER,
+            size_name TEXT NOT NULL,
+            price DECIMAL NOT NULL,
+            FOREIGN KEY (item_id) REFERENCES items(item_id)
         );
         
         CREATE TABLE IF NOT EXISTS order_details (
             order_id INTEGER,
             item_id INTEGER,
             quantity INTEGER NOT NULL,
+            size TEXT,
             CONSTRAINT fk_order_id FOREIGN KEY (order_id) REFERENCES orders(order_id),
             CONSTRAINT fk_item_id FOREIGN KEY (item_id) REFERENCES items(item_id)
         );
         """
     )
+    
+    # Add is_food column if it doesn't exist (for migration)
+    try:
+        cursor.execute("ALTER TABLE items ADD COLUMN is_food BOOLEAN NOT NULL DEFAULT 0;")
+    except sqlite3.OperationalError:
+        pass  # Column already exists
+    
+    # Add size column to order_details if it doesn't exist
+    try:
+        cursor.execute("ALTER TABLE order_details ADD COLUMN size TEXT;")
+    except sqlite3.OperationalError:
+        pass  # Column already exists
     conn.commit()
     conn.close()
 
     add_product_to_db("Coffee", 2.25)
+    add_item_size("Coffee", "Small", 2.00)
+    add_item_size("Coffee", "Medium", 2.25)
+    add_item_size("Coffee", "Large", 2.50)
     add_product_to_db("Cafe au Lait", 3.25)
+    add_item_size("Cafe au Lait", "Small", 3.00)
+    add_item_size("Cafe au Lait", "Medium", 3.25)
+    add_item_size("Cafe au Lait", "Large", 3.50)
     add_product_to_db("Cold Brew", 2.55)
+    add_item_size("Cold Brew", "Small", 2.30)
+    add_item_size("Cold Brew", "Medium", 2.55)
+    add_item_size("Cold Brew", "Large", 2.80)
     add_product_to_db("Double Espresso", 2.45)
+    add_item_size("Double Espresso", "Small", 2.20)
+    add_item_size("Double Espresso", "Medium", 2.45)
+    add_item_size("Double Espresso", "Large", 2.70)
     add_product_to_db("Macchiato", 2.95)
+    add_item_size("Macchiato", "Small", 2.70)
+    add_item_size("Macchiato", "Medium", 2.95)
+    add_item_size("Macchiato", "Large", 3.20)
     add_product_to_db("Mocha", 2.55)
+    add_item_size("Mocha", "Small", 2.30)
+    add_item_size("Mocha", "Medium", 2.55)
+    add_item_size("Mocha", "Large", 2.80)
     add_product_to_db("Chai Latte", 2.55)
+    add_item_size("Chai Latte", "Small", 2.30)
+    add_item_size("Chai Latte", "Medium", 2.55)
+    add_item_size("Chai Latte", "Large", 2.80)
     add_product_to_db("Matcha Latte", 2.55)
-    add_product_to_db("Bacon, Egg & Cheese", 2.75)
-    add_product_to_db("Sausage, Egg & Cheese", 2.75)
-    add_product_to_db("Ham, Egg & Cheese", 2.75)
-    add_product_to_db("Spinach, Egg & Cheese", 2.75)
-    add_product_to_db("Bagel with Cream Cheese", 1.75)
+    add_item_size("Matcha Latte", "Small", 2.30)
+    add_item_size("Matcha Latte", "Medium", 2.55)
+    add_item_size("Matcha Latte", "Large", 2.80)
+    add_product_to_db("Bacon, Egg & Cheese", 2.75, True)
+    add_product_to_db("Sausage, Egg & Cheese", 2.75, True)
+    add_product_to_db("Ham, Egg & Cheese", 2.75, True)
+    add_product_to_db("Spinach, Egg & Cheese", 2.75, True)
+    add_product_to_db("Bagel with Cream Cheese", 1.75, True)
 
 
-def add_product_to_db(name: str, price: float, db_path: str | Path = DEFAULT_DB_PATH) -> None:
+def add_product_to_db(name: str, price: float, is_food: bool = False, db_path: str | Path = DEFAULT_DB_PATH) -> None:
     with _connect(db_path) as conn:
         cursor = conn.cursor()
         cursor.execute(
             """
-            INSERT INTO items (name, price)
-            SELECT ?, ?
+            INSERT INTO items (name, price, is_food)
+            SELECT ?, ?, ?
             WHERE NOT EXISTS(
                 Select items.name FROM items WHERE name = ?
             );
             """,
-            (name, price, name,),
+            (name, price, is_food, name,),
+        )
+
+def add_item_size(item_name: str, size_name: str, price: float, db_path: str | Path = DEFAULT_DB_PATH) -> None:
+    with _connect(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            INSERT INTO item_sizes (item_id, size_name, price)
+            SELECT item_id, ?, ?
+            FROM items
+            WHERE name = ? AND NOT EXISTS(
+                SELECT 1 FROM item_sizes WHERE item_id = items.item_id AND size_name = ?
+            )
+            """,
+            (size_name, price, item_name, size_name),
         )
 
 def create_order(
@@ -88,24 +149,32 @@ def create_order(
     order_id = cursor.lastrowid
     drinks = order.get_drinks()
     for item in drinks:
+        # Parse base name and size from drink name (e.g., "Coffee (Medium)" -> "Coffee", "Medium")
+        full_name = item.get_name()
+        if ' (' in full_name and full_name.endswith(')'):
+            base_name = full_name.split(' (')[0]
+            size = full_name.split(' (')[1][:-1]  # Remove closing )
+        else:
+            base_name = full_name
+            size = None
         drink_row = cursor.execute(
             """
-            SELECT item_id, name, price
+            SELECT item_id
             FROM items
             WHERE name = ?
             """,
-            (item.get_name(),),
+            (base_name,),
         ).fetchone()
         if drink_row is None:
-            error(f"Drink {item.get_name()} not found in database from order: {order_id}")
+            error(f"Drink {base_name} not found in database from order: {order_id}")
             return -1
         else:
             cursor.execute(
                 """
-                INSERT INTO order_details (order_id, item_id, quantity)
-                VALUES (?, ?, ?)
+                INSERT INTO order_details (order_id, item_id, quantity, size)
+                VALUES (?, ?, ?, ?)
                 """,
-                (order_id, drink_row["item_id"], drinks[item],),
+                (order_id, drink_row["item_id"], drinks[item], size),
             )
     conn.commit()
     conn.close()
@@ -128,14 +197,21 @@ def get_order(order_id: int, db_path: str | Path = DEFAULT_DB_PATH) -> list[dict
     with _connect(db_path) as conn:
         rows = conn.execute(
             """
-            SELECT items.name, order_details.quantity
+            SELECT items.name, order_details.quantity, order_details.size
             FROM order_details
             INNER JOIN items ON order_details.item_id = items.item_id
             WHERE order_id = ?;
             """,
             (order_id,),
         ).fetchall()
-    return [dict(row) for row in rows]
+        # Construct full name with size if present
+        result = []
+        for row in rows:
+            name = row['name']
+            if row['size']:
+                name += f" ({row['size']})"
+            result.append({'name': name, 'quantity': row['quantity']})
+        return result
 
 def get_queue_position(
     order_id: int, db_path: str | Path = DEFAULT_DB_PATH
@@ -163,15 +239,35 @@ def get_queue_position(
         ).fetchone()
     return int(row["position"])
 
-def get_items() -> list[dict[str, int]]:
+def get_items() -> list[dict[str, Any]]:
     with _connect(DEFAULT_DB_PATH) as conn:
+        # Get base items
         items = conn.execute(
             """
-            SELECT name, price
+            SELECT item_id, name, price, is_food
             FROM items
             """
         ).fetchall()
-    return [dict(row) for row in items]
+        
+        result = []
+        for item in items:
+            item_dict = dict(item)
+            if not item_dict['is_food']:
+                # Get sizes for drinks
+                sizes = conn.execute(
+                    """
+                    SELECT size_name, price
+                    FROM item_sizes
+                    WHERE item_id = ?
+                    ORDER BY price ASC
+                    """,
+                    (item_dict['item_id'],)
+                ).fetchall()
+                item_dict['sizes'] = [dict(size) for size in sizes]
+            else:
+                item_dict['sizes'] = []
+            result.append(item_dict)
+    return result
 
 def complete_order(order_id: int, db_path: str | Path = DEFAULT_DB_PATH) -> None:
     with _connect(db_path) as conn:
