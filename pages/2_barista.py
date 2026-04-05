@@ -19,6 +19,13 @@ if not pending_orders:
 else:
     pending_container.write(f"Total pending: {len(pending_orders)}")
 
+    with pending_container.container(horizontal=True):
+        id_col, name_col, status_col, time_col, button_col = pending_container.columns(5, vertical_alignment="center")
+        id_col.subheader("Order Id")
+        name_col.subheader("Name")
+        status_col.subheader("Status")
+        time_col.subheader("Time")
+
     for order in pending_orders:
         c = pending_container.container(horizontal=True)
 
