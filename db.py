@@ -117,7 +117,7 @@ def _migrate_v2(conn: sqlite3.Connection) -> None:
     )
 
 
-def add_drink_to_db(name: str, price: float, db_path: str | Path = DEFAULT_DB_PATH) -> None:
+def add_product_to_db(name: str, price: float, is_food: bool = False, db_path: str | Path = DEFAULT_DB_PATH) -> None:
     with _connect(db_path) as conn:
         conn.execute(
             """
@@ -255,7 +255,14 @@ def get_order(order_id: int, db_path: str | Path = DEFAULT_DB_PATH) -> list[dict
             """,
             (order_id,),
         ).fetchall()
-    return [dict(row) for row in rows]
+        # Construct full name with size if present
+        result = []
+        for row in rows:
+            name = row['name']
+            if row['size']:
+                name += f" ({row['size']})"
+            result.append({'name': name, 'quantity': row['quantity']})
+        return result
 
 
 def get_queue_position(
@@ -289,7 +296,7 @@ def get_items(db_path: str | Path = DEFAULT_DB_PATH) -> list[dict[str, Any]]:
     with _connect(db_path) as conn:
         rows = conn.execute(
             """
-            SELECT name, price
+            SELECT item_id, name, price, is_food
             FROM items
             WHERE available = 1
             """
