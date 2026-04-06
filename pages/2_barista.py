@@ -22,10 +22,10 @@ if not pending_orders:
 else:
     pending_container.markdown(f"**Total pending: {len(pending_orders)}**")
 
-    col_widths = [1, 2.5, 2, 2, 1.5]
+    col_widths = [1, 2.5, 2, 2, 1.8]
     header_c = pending_container.container()
     id_col, name_col, status_col, time_col, button_col = header_c.columns(col_widths, vertical_alignment="center")
-    id_col.markdown("**Order ID**")
+    id_col.markdown("**ID**")
     name_col.markdown("**Name**")
     status_col.markdown("**Status**")
     time_col.markdown("**Time**")
