@@ -4,22 +4,34 @@ from typing import Any
 from order import Order
 
 DEFAULT_DB_PATH = Path("coffeeshop.db")
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 4
 
 SEED_ITEMS = [
-    ("Coffee", 2.25),
-    ("Cafe au Lait", 3.25),
-    ("Cold Brew", 2.55),
-    ("Double Espresso", 2.45),
-    ("Macchiato", 2.95),
-    ("Mocha", 2.55),
-    ("Chai Latte", 2.55),
+    ("Coffee", 2.25, True),
+    ("Cafe au Lait", 3.25, True),
+    ("Cold Brew", 2.55, True),
+    ("Double Espresso", 2.45, True),
+    ("Macchiato", 2.95, True),
+    ("Mocha", 2.55, True),
+    ("Chai Latte", 2.55, True),
+    ("Bacon, Egg & Cheese", 2.75, False),
+    ("Sausage, Egg & Cheese", 2.75, False),
+    ("Ham, Egg & Cheese", 2.75, False),
+    ("Spinach, Egg & Cheese", 2.75, False),
+    ("Bagel with Cream Cheese", 1.75, False),
 ]
 
 SEED_SIZES = [
     ("small", 0.85),
     ("medium", 1.0),
     ("large", 1.2),
+    ("one_size", 1.0), # for items without sizes
+
+]
+
+ITEM_TYPES = [
+    "drink",
+    "food"
 ]
 
 
@@ -50,8 +62,16 @@ def init_db(db_path: str | Path = DEFAULT_DB_PATH) -> None:
             _migrate_v2(conn)
             _set_version(conn, 2)
 
-    for name, price in SEED_ITEMS:
-        add_drink_to_db(name, price, db_path)
+        if version < 3:
+            _migrate_v3(conn)
+            _set_version(conn, 3)
+
+        if version < 4:
+            _migrate_v4(conn)
+            _set_version(conn, 4)
+
+    for name, price, has_sizes in SEED_ITEMS:
+        add_item_to_db(name, price, has_sizes, db_path)
 
     for name, multiplier in SEED_SIZES:
         add_size_to_db(name, multiplier, db_path)
@@ -116,18 +136,48 @@ def _migrate_v2(conn: sqlite3.Connection) -> None:
         """
     )
 
+def _migrate_v3(conn: sqlite3.Connection) -> None:
+    conn.executescript(
+        """
+        ALTER TABLE items ADD COLUMN has_sizes INTEGER NOT NULL DEFAULT 1 CHECK(has_sizes IN (0, 1));
+        """
+    )
 
-def add_drink_to_db(name: str, price: float, db_path: str | Path = DEFAULT_DB_PATH) -> None:
+def _migrate_v4(conn: sqlite3.Connection) -> None:
+    conn.executescript(
+        """
+        CREATE TABLE order_details_new (
+            order_detail_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            order_id        INTEGER NOT NULL,
+            item_id         INTEGER NOT NULL,
+            size_id         INTEGER REFERENCES sizes(size_id) ON DELETE RESTRICT,
+            quantity        INTEGER NOT NULL CHECK(quantity > 0),
+            unit_price      DECIMAL NOT NULL CHECK(unit_price >= 0),
+            CONSTRAINT  uq_order_item_size UNIQUE (order_id, item_id, size_id),
+            CONSTRAINT  fk_order_id FOREIGN KEY (order_id) REFERENCES orders(order_id)  ON DELETE CASCADE,
+            CONSTRAINT  fk_item_id  FOREIGN KEY (item_id)  REFERENCES items(item_id)    ON DELETE RESTRICT
+        );
+
+        INSERT INTO order_details_new SELECT * FROM order_details;
+        DROP TABLE order_details;
+        ALTER TABLE order_details_new RENAME TO order_details;
+
+        CREATE INDEX IF NOT EXISTS idx_order_details_order_id ON order_details(order_id);
+        """
+    )
+
+
+def add_item_to_db(name: str, price: float, has_sizes: bool = True, db_path: str | Path = DEFAULT_DB_PATH) -> None:
     with _connect(db_path) as conn:
         conn.execute(
             """
-            INSERT INTO items (name, price)
-            SELECT ?, ?
+            INSERT INTO items (name, price, has_sizes)
+            SELECT ?, ?, ?
             WHERE NOT EXISTS (
                 SELECT 1 FROM items WHERE name = ?
             )
             """,
-            (name, price, name),
+            (name, price, int(has_sizes), name),
         )
 
 
@@ -153,6 +203,17 @@ def _seed_item_sizes(db_path: str | Path = DEFAULT_DB_PATH) -> None:
             SELECT items.item_id, sizes.size_id
             FROM items
             CROSS JOIN sizes
+            WHERE items.has_sizes = 1 AND sizes.name != 'one_size'
+            """
+        )
+        # for sizeless items
+        conn.execute(
+            """
+            INSERT OR IGNORE INTO item_sizes (item_id, size_id)
+            SELECT items.item_id, sizes.size_id
+            FROM items
+            CROSS JOIN sizes
+            WHERE items.has_sizes = 0 AND sizes.name = 'one_size'
             """
         )
 
@@ -247,7 +308,11 @@ def get_order(order_id: int, db_path: str | Path = DEFAULT_DB_PATH) -> list[dict
     with _connect(db_path) as conn:
         rows = conn.execute(
             """
-            SELECT items.name, sizes.name AS size, order_details.quantity, order_details.unit_price
+            SELECT
+                items.name,
+                CASE WHEN sizes.name = 'one_size' THEN '' ELSE sizes.name END AS size,
+                order_details.quantity,
+                order_details.unit_price
             FROM order_details
             INNER JOIN items ON order_details.item_id = items.item_id
             INNER JOIN sizes ON order_details.size_id = sizes.size_id

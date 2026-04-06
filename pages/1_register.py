@@ -54,27 +54,38 @@ with order_pane:
     with st.container(height=DETAIL_PANE_HEIGHT, border=True):
         selected = st.session_state.selected_drink
         if selected is None:
-            st.markdown("*Select a drink to see details*")
+            st.markdown("*Select an item to see details*")
         else:
             sizes = get_sizes_for_item(selected["name"])
-            st.markdown(f"**{selected["name"]}**")
-            st.caption(f"Base price: ${selected["price"]:.2f}")
+            st.markdown(f"**{selected['name']}**")
+            st.caption(f"Price: ${selected['price']:.2f}")
+
             if not sizes:
                 st.warning("No sizes available for this item.")
             else:
-                size_labels = {s["name"].capitalize(): s for s in sizes}
-                chosen_label = st.radio(
-                    "Size", options=list(size_labels.keys()),
-                    horizontal=True,
-                    index=1 if len(size_labels) > 1 else 0,
-                    key="size_radio",
-                )
-                chosen_size = size_labels[chosen_label]
-                st.markdown(f"**Price: ${chosen_size['computed_price']:.2f}**")
-                if st.button("Add to order", key="detail_add"):
-                    drink = Drink(selected["name"], selected["price"])
-                    st.session_state.order.add_drink(drink, chosen_size["name"], chosen_size["computed_price"])
-                    st.rerun()
+                one_size = len(sizes) == 1 and sizes[0]["name"] == "one_size"
+
+                if one_size:
+                    chosen_size = sizes[0]
+                    st.markdown(f"**${chosen_size['computed_price']:.2f}**")
+                    if st.button("Add to order", key="detail_add"):
+                        drink = Drink(selected["name"], selected["price"])
+                        st.session_state.order.add_drink(drink, chosen_size["name"], chosen_size["computed_price"])
+                        st.rerun()
+                else:
+                    size_labels = {s["name"].capitalize(): s for s in sizes}
+                    chosen_label = st.radio(
+                        "Size", options=list(size_labels.keys()),
+                        horizontal=True,
+                        index=1 if len(size_labels) > 1 else 0,
+                        key="size_radio",
+                    )
+                    chosen_size = size_labels[chosen_label]
+                    st.markdown(f"**Price: ${chosen_size['computed_price']:.2f}**")
+                    if st.button("Add to order", key="detail_add"):
+                        drink = Drink(selected["name"], selected["price"])
+                        st.session_state.order.add_drink(drink, chosen_size["name"], chosen_size["computed_price"])
+                        st.rerun()
 
     # Order contents
     with st.container(height=SCROLL_HEIGHT, border=False):
@@ -87,7 +98,7 @@ with order_pane:
                 c = st.container(border=True)
                 name_col, size_col, qty_col = c.columns([3, 2, 2])
                 name_col.text(drink.get_name())
-                size_col.text(size_name.capitalize())
+                size_col.text("" if size_name == "one_size" else size_name.capitalize())
                 qty_col.text(f"x{quantity}  ${unit_price:.2f} ea")
 
 # Submit bar
