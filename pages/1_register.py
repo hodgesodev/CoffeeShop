@@ -1,4 +1,6 @@
+import time
 import streamlit as st
+import streamlit.components.v1 as components
 from drink import Drink
 from order import Order
 from db import create_order, get_items, get_sizes_for_item
@@ -27,6 +29,18 @@ if "selected_drink" not in st.session_state:
     st.rerun()
 
 # Header
+if st.session_state.get("submit_success"):
+    elapsed = time.time() - st.session_state.submit_success
+    if elapsed < 1:
+        st.success("Order placed successfully!")
+        components.html(
+            "<script>setTimeout(() => window.parent.location.reload(), 1000);</script>",
+            height=0,
+        )
+    else:
+        st.session_state.submit_success = None
+        st.rerun()
+
 st.title("Register")
 
 # Main columns
@@ -93,7 +107,7 @@ with order_pane:
     with st.container(height=SCROLL_HEIGHT, border=False):
         ordered_drinks = st.session_state.order.get_drinks()
         if not ordered_drinks:
-            st.caption("No drinks added yet.")
+            st.caption("No items added yet.")
         else:
             for (drink, size_name), quantity in ordered_drinks.items():
                 unit_price = st.session_state.order.get_unit_price(drink, size_name)
@@ -111,11 +125,15 @@ with col1:
         init_order()
         st.rerun()
 with col2:
-    customer_name = st.text_input("Customer name").strip()
+    if not st.session_state.get("submit_success"):
+        customer_name = st.text_input("Customer name").strip()
+    else:
+        customer_name = ""
 with col3:
     st.markdown(f"**Total: ${st.session_state.order.get_price():.2f}**")
     if st.button("Submit") and customer_name:
         create_order(customer_name, st.session_state.order)
         init_order()
         st.session_state.selected_drink = None
+        st.session_state.submit_success = time.time()
         st.rerun()
