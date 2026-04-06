@@ -1,4 +1,6 @@
+import time
 import streamlit as st
+import streamlit.components.v1 as components
 from drink import Drink
 from order import Order
 from db import create_order, get_items, get_sizes_for_item
@@ -20,11 +22,25 @@ def init_order():
 
 if "order" not in st.session_state:
     init_order()
+    st.rerun()
 
 if "selected_drink" not in st.session_state:
     st.session_state.selected_drink = None
+    st.rerun()
 
 # Header
+if st.session_state.get("submit_success"):
+    elapsed = time.time() - st.session_state.submit_success
+    if elapsed < 1:
+        st.success("Order placed successfully!")
+        components.html(
+            "<script>setTimeout(() => window.parent.location.reload(), 1000);</script>",
+            height=0,
+        )
+    else:
+        st.session_state.submit_success = None
+        st.rerun()
+
 st.title("Register")
 
 # Main columns
@@ -54,40 +70,51 @@ with order_pane:
     with st.container(height=DETAIL_PANE_HEIGHT, border=True):
         selected = st.session_state.selected_drink
         if selected is None:
-            st.markdown("*Select a drink to see details*")
+            st.markdown("*Select an item to see details*")
         else:
             sizes = get_sizes_for_item(selected["name"])
-            st.markdown(f"**{selected["name"]}**")
-            st.caption(f"Base price: ${selected["price"]:.2f}")
+            st.markdown(f"**{selected['name']}**")
+            st.caption(f"Price: ${selected['price']:.2f}")
+
             if not sizes:
                 st.warning("No sizes available for this item.")
             else:
-                size_labels = {s["name"].capitalize(): s for s in sizes}
-                chosen_label = st.radio(
-                    "Size", options=list(size_labels.keys()),
-                    horizontal=True,
-                    index=1 if len(size_labels) > 1 else 0,
-                    key="size_radio",
-                )
-                chosen_size = size_labels[chosen_label]
-                st.markdown(f"**Price: ${chosen_size['computed_price']:.2f}**")
-                if st.button("Add to order", key="detail_add"):
-                    drink = Drink(selected["name"], selected["price"])
-                    st.session_state.order.add_drink(drink, chosen_size["name"], chosen_size["computed_price"])
-                    st.rerun()
+                one_size = len(sizes) == 1 and sizes[0]["name"] == "one_size"
+
+                if one_size:
+                    chosen_size = sizes[0]
+                    st.markdown(f"**${chosen_size['computed_price']:.2f}**")
+                    if st.button("Add to order", key="detail_add"):
+                        drink = Drink(selected["name"], selected["price"])
+                        st.session_state.order.add_drink(drink, chosen_size["name"], chosen_size["computed_price"])
+                        st.rerun()
+                else:
+                    size_labels = {s["name"].capitalize(): s for s in sizes}
+                    chosen_label = st.radio(
+                        "Size", options=list(size_labels.keys()),
+                        horizontal=True,
+                        index=1 if len(size_labels) > 1 else 0,
+                        key="size_radio",
+                    )
+                    chosen_size = size_labels[chosen_label]
+                    st.markdown(f"**Price: ${chosen_size['computed_price']:.2f}**")
+                    if st.button("Add to order", key="detail_add"):
+                        drink = Drink(selected["name"], selected["price"])
+                        st.session_state.order.add_drink(drink, chosen_size["name"], chosen_size["computed_price"])
+                        st.rerun()
 
     # Order contents
     with st.container(height=SCROLL_HEIGHT, border=False):
         ordered_drinks = st.session_state.order.get_drinks()
         if not ordered_drinks:
-            st.caption("No drinks added yet.")
+            st.caption("No items added yet.")
         else:
             for (drink, size_name), quantity in ordered_drinks.items():
                 unit_price = st.session_state.order.get_unit_price(drink, size_name)
                 c = st.container(border=True)
                 name_col, size_col, qty_col = c.columns([3, 2, 2])
                 name_col.text(drink.get_name())
-                size_col.text(size_name.capitalize())
+                size_col.text("" if size_name == "one_size" else size_name.capitalize())
                 qty_col.text(f"x{quantity}  ${unit_price:.2f} ea")
 
 # Submit bar
@@ -98,11 +125,15 @@ with col1:
         init_order()
         st.rerun()
 with col2:
-    customer_name = st.text_input("Customer name").strip()
+    if not st.session_state.get("submit_success"):
+        customer_name = st.text_input("Customer name").strip()
+    else:
+        customer_name = ""
 with col3:
     st.markdown(f"**Total: ${st.session_state.order.get_price():.2f}**")
     if st.button("Submit") and customer_name:
         create_order(customer_name, st.session_state.order)
         init_order()
         st.session_state.selected_drink = None
+        st.session_state.submit_success = time.time()
         st.rerun()
