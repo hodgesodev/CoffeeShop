@@ -20,9 +20,11 @@ def init_order():
 
 if "order" not in st.session_state:
     init_order()
+    st.rerun()
 
 if "selected_drink" not in st.session_state:
     st.session_state.selected_drink = None
+    st.rerun()
 
 # Header
 st.title("Register")
