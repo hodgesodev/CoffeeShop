@@ -1,0 +1,79 @@
+@startuml database
+
+title Coffee Shop — Entity Relationship Diagram
+
+skinparam linetype ortho
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 11
+skinparam padding 2
+skinparam nodesep 30
+skinparam ranksep 50
+
+skinparam entity {
+  BackgroundColor #FFFFFF
+  BorderColor #000000
+  BorderThickness 1.5
+  HeaderBackgroundColor #1F4E8C
+  FontColor #FFFFFF
+  AttributeFontColor #000000
+  AttributeFontSize 11
+}
+
+skinparam arrow {
+  Color #000000
+  FontColor #000000
+  FontSize 10
+  Thickness 1.5
+}
+
+hide methods
+hide stereotypes
+
+entity orders {
+  * order_id : INTEGER <<PK>>
+  --
+  * customer_name : TEXT
+  * status : TEXT
+  * created_at : TEXT
+  * updated_at : TEXT
+}
+
+entity items {
+  * item_id : INTEGER <<PK>>
+  --
+  * name : TEXT
+  * price : DECIMAL
+  * available : INTEGER
+  * has_sizes : INTEGER
+}
+
+entity sizes {
+  * size_id : INTEGER <<PK>>
+  --
+  * name : TEXT
+  * multiplier : REAL
+}
+
+entity item_sizes {
+  * item_id : INTEGER <<FK>>
+  * size_id : INTEGER <<FK>>
+}
+
+entity order_details {
+  * order_detail_id : INTEGER <<PK>>
+  --
+  * order_id : INTEGER <<FK>>
+  * item_id : INTEGER <<FK>>
+  o size_id : INTEGER <<FK>>
+  * quantity : INTEGER
+  * unit_price : DECIMAL
+}
+
+orders ||--o{ order_details : "order_id"
+items  ||--o{ order_details : "item_id"
+sizes  ||--o{ order_details : "size_id"
+items  ||--o{ item_sizes    : "item_id"
+sizes  ||--o{ item_sizes    : "size_id"
+
+@enduml

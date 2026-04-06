@@ -1,0 +1,84 @@
+@startuml classes
+
+title Coffee Shop — Domain Class Diagram
+
+skinparam linetype ortho
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 11
+skinparam padding 2
+skinparam nodesep 30
+skinparam ranksep 50
+
+skinparam class {
+  BackgroundColor #FFFFFF
+  BorderColor #000000
+  BorderThickness 1.5
+  HeaderBackgroundColor #1F4E8C
+  FontColor #000000
+  AttributeFontColor #000000
+  AttributeFontSize 11
+  StereotypeFontColor #FFFFFF
+  FontColor<<header>> #FFFFFF
+}
+
+skinparam classHeaderBackgroundColor #1F4E8C
+skinparam classFontColor #FFFFFF
+skinparam classFontSize 12
+skinparam classFontStyle bold
+
+skinparam arrow {
+  Color #000000
+  FontColor #000000
+  FontSize 10
+  Thickness 1.5
+}
+
+skinparam note {
+  BackgroundColor #FFFDE7
+  BorderColor #888888
+  FontSize 10
+}
+
+hide empty members
+hide circle
+
+class Drink {
+  - _name : str
+  - _price : float
+  ..
+  + get_name() : str
+  + get_price() : float
+  + set_name(name : str) : void
+  + set_price(price : float) : void
+}
+
+class Order {
+  - _price : float
+  - _drinks : dict[tuple[Drink, str], int]
+  - _unit_prices : dict[tuple[Drink, str], float]
+  ..
+  + add_drink(drink : Drink, size : str, unit_price : float) : void
+  + remove_drink(drink : Drink, size : str) : void
+  + get_drinks() : dict
+  + get_price() : float
+  + get_unit_price(drink : Drink, size : str) : float
+  + update_price() : void
+}
+
+class Ingredient {
+  - _name : str
+  - _price : float
+  ..
+  + get_name() : str
+  + get_price() : float
+}
+
+note bottom of Ingredient
+  Defined but not currently
+  referenced by any module.
+end note
+
+Order "1" *-- "0..*" Drink : contains >
+
+@enduml

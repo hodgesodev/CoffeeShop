@@ -1,0 +1,77 @@
+@startuml structure
+
+title Coffee Shop — Component Structure Diagram
+
+skinparam linetype ortho
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 11
+skinparam padding 2
+skinparam nodesep 30
+skinparam ranksep 50
+
+skinparam component {
+  BackgroundColor #FFFFFF
+  BorderColor #000000
+  BorderThickness 1.5
+  FontColor #000000
+  FontSize 11
+  Style rectangle
+}
+
+skinparam package {
+  BackgroundColor #EAF0FB
+  BorderColor #1F4E8C
+  BorderThickness 1.5
+  FontColor #1F4E8C
+  FontSize 11
+  FontStyle bold
+}
+
+skinparam database {
+  BackgroundColor #FFFFFF
+  BorderColor #000000
+  BorderThickness 1.5
+  FontColor #000000
+  FontSize 11
+}
+
+skinparam arrow {
+  Color #000000
+  FontColor #333333
+  FontSize 9
+  Thickness 1.5
+}
+
+package "Streamlit Pages" {
+  component "1_register.py\n<<Page>>" as register
+  component "2_barista.py\n<<Page>>" as barista
+  component "3_order_queue.py\n<<Page>>" as queue
+}
+
+package "Application" {
+  component "app.py\n<<Entry Point>>" as app
+}
+
+package "Data Access" {
+  component "db.py\n<<Repository>>" as db
+}
+
+package "Domain Model" {
+  component "order.py\n<<Model>>" as order
+  component "drink.py\n<<Model>>" as drink
+  component "ingredient.py\n<<Model>>" as ingredient
+}
+
+database "coffeeshop.db\n<<SQLite>>" as sqlite
+
+app      --> db     : init_db()
+register --> db     : get_items()\nget_sizes_for_item()\ncreate_order()
+register --> order  : Order()
+register --> drink  : Drink()
+barista  --> db     : get_pending_orders()\nget_order()\ncomplete_order()
+queue    --> db     : get_pending_orders()
+order    --> drink  : uses
+db       --> sqlite : sqlite3
+
+@enduml
